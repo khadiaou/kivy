@@ -1,0 +1,82 @@
+import speech_recognition as sr
+import pyttsx3
+import sqlite3
+
+# إعداد المحرك الصوتي
+engine = pyttsx3.init()
+
+# إعداد مستشعر الصوت
+recognizer = sr.Recognizer()
+
+# إعداد قاعدة البيانات لتخزين الكلمات المتعلمة
+def create_db():
+    conn = sqlite3.connect('language_app.db')
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS words (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            word TEXT NOT NULL,
+            meaning TEXT NOT NULL
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+# وظيفة للتحدث
+def speak(text):
+    engine.say(text)
+    engine.runAndWait()
+
+# وظيفة للاستماع إلى الصوت
+def listen():
+    with sr.Microphone() as source:
+        print("Say a word!")
+        audio = recognizer.listen(source)
+        return recognizer.recognize_google(audio)
+
+# إضافة كلمة جديدة إلى قاعدة البيانات
+def add_word_to_db(word, meaning):
+    conn = sqlite3.connect('language_app.db')
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO words (word, meaning) VALUES (?, ?)
+    ''', (word, meaning))
+    conn.commit()
+    conn.close()
+
+# عرض الكلمات المتعلمة
+def show_words():
+    conn = sqlite3.connect('language_app.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT word, meaning FROM words')
+    words = cursor.fetchall()
+    conn.close()
+    return words
+
+# درس لتعليم الكلمات
+def language_lesson():
+    speak("Let's start learning new words!")
+    
+    while True:
+        speak("Say a word and I will try to teach you its meaning.")
+        word = listen()
+        speak(f"You said {word}. Now, please provide its meaning.")
+        meaning = listen()
+        
+        add_word_to_db(word, meaning)
+        speak(f"Great! The word {word} has been added with its meaning.")
+        
+        speak("Would you like to add more words? Say 'yes' or 'no'.")
+        response = listen().lower()
+        if response == 'no':
+            break
+
+    speak("Here's a list of the words you've learned:")
+    words = show_words()
+    for word, meaning in words:
+        speak(f"The word {word} means {meaning}.")
+
+# بدء التطبيق
+if __name__ == "__main__":
+    create_db()
+    language_lesson()
